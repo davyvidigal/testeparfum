@@ -1,0 +1,8 @@
+PARFUM VIDIGAL - FUNDO UNIFORME NAS PROMOÇÕES
+
+Substitua somente promocoes.js pelo arquivo deste ZIP.
+O fundo branco da vitrine foi removido; a arte usa preto/marrom/dourado.
+A opção Remover fundo branco da foto fica ativada por padrão.
+Se algum perfume branco perder detalhes, desmarque essa opção.
+Nenhum arquivo da loja ou painel foi modificado.
+Atualize a página com Ctrl+F5.

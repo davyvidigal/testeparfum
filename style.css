@@ -322,7 +322,3 @@ footer p {
     font-size: 28px;
   }
 }
-
-.product-id { display:block; color:#aaa; margin:0 0 12px; font-size:12px; }
-.quantity-controls { display:flex; gap:12px; align-items:center; margin:8px 0; }
-.quantity-controls button { border:1px solid #c9a45c; padding:5px 10px; color:#c9a45c; }

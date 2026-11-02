@@ -162,7 +162,7 @@ function renderProducts() {
     : "todos";
 
   const filtered = products.filter(product =>
-    (String(product.name).toLocaleLowerCase("pt-BR").includes(search) || String(product.id) === search) &&
+    String(product.name).toLocaleLowerCase("pt-BR").includes(search) &&
     (category === "todos" || product.category === category)
   );
 
@@ -189,7 +189,6 @@ function renderProducts() {
       >
 
       <h3>${escapeHTML(product.name)}</h3>
-      <small class="product-id">Código: ${escapeHTML(product.id)}</small>
 
       <p>${money(product.price)}</p>
 
@@ -401,17 +400,6 @@ function initStore() {
   renderProducts();
   updateCart();
 }
-
-function reloadStoreProducts() {
-  const updated = readStorage(PRODUCT_KEY, defaultProducts);
-  products = Array.isArray(updated) ? updated : defaultProducts;
-  renderProducts();
-}
-window.addEventListener("storage", event => {
-  if (event.key === PRODUCT_KEY) reloadStoreProducts();
-});
-window.addEventListener("pageshow", reloadStoreProducts);
-window.addEventListener("focus", reloadStoreProducts);
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initStore);

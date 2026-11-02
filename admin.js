@@ -4,6 +4,27 @@ const CHARGES_KEY = "parfumvidigal_charges";
 
 const ADMIN_PASSWORD = "@Davy9818";
 
+const DEFAULT_PRODUCTS = [
+  {
+    id: 1,
+    name: "Luxury Gold",
+    price: 299.90,
+    category: "masculino",
+    image: "https://images.unsplash.com/photo-1594035910387-fea477",
+    stock: 10,
+    description: "Perfume sofisticado e marcante."
+  },
+  {
+    id: 2,
+    name: "Rose Elegance",
+    price: 249.90,
+    category: "feminino",
+    image: "https://images.unsplash.com/photo-1541643600914-78b084683601",
+    stock: 10,
+    description: "Fragrância elegante e delicada."
+  }
+];
+
 // ELEMENTOS
 const loginSection = document.getElementById("admin-login");
 const loginForm = document.getElementById("login-form");
@@ -186,23 +207,6 @@ function getProducts() {
   }
 }
 
-// Próximo ID automático, sem reutilizar IDs excluídos.
-const LAST_PRODUCT_ID_KEY = "parfumvidigal_last_product_id";
-function nextProductId(products) {
-  const maxExisting = products.reduce((max, product) => {
-    const id = Number(product.id);
-    return Number.isSafeInteger(id) && id > max ? id : max;
-  }, 0);
-  const last = Number(localStorage.getItem(LAST_PRODUCT_ID_KEY)) || 0;
-  return Math.max(maxExisting, last) + 1;
-}
-function rememberProductId(id) {
-  const previous = Number(localStorage.getItem(LAST_PRODUCT_ID_KEY)) || 0;
-  if (Number(id) > previous) {
-    localStorage.setItem(LAST_PRODUCT_ID_KEY, String(id));
-  }
-}
-
 // ORDENAR PRODUTOS EM ORDEM ALFABÉTICA
 function getProductsAlphabetically() {
   return getProducts().slice().sort((a, b) =>
@@ -345,9 +349,6 @@ function renderAdmin() {
     const title = document.createElement("h3");
     title.textContent = product.name;
 
-    const idLine = document.createElement("p");
-    idLine.textContent = "ID do produto: " + product.id;
-
     const price = document.createElement("p");
     price.textContent = formatPrice(product.price);
 
@@ -372,7 +373,6 @@ function renderAdmin() {
     card.append(
       image,
       title,
-      idLine,
       price,
       category,
       stock,
@@ -448,7 +448,7 @@ productForm.addEventListener("submit", async function(event) {
   }
 
   const product = {
-    id: existingProduct ? existingProduct.id : nextProductId(products),
+    id: existingProduct ? existingProduct.id : Date.now(),
     name,
     price,
     category,
@@ -467,7 +467,6 @@ productForm.addEventListener("submit", async function(event) {
   saveButton.textContent = "SALVAR PRODUTO";
 
   if (!saved) return;
-  rememberProductId(product.id);
 
   formMessage.style.color = "green";
   formMessage.textContent = existingProduct
@@ -518,11 +517,7 @@ function deleteProduct(id) {
 
   const products = getProducts().filter(p => String(p.id) !== String(id));
 
-  if (saveProducts(products)) {
-    renderAdmin();
-    refreshChargeProductOptions();
-    renderReports();
-  }
+  if (saveProducts(products)) renderAdmin();
 }
 
 // LIMPAR FORMULÁRIO
