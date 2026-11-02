@@ -24,7 +24,7 @@
     <canvas id="promo-canvas" width="1080" height="1350" style="display:none;width:100%;max-width:420px;border-radius:12px;margin:14px 0"></canvas>
     <div id="promo-actions" style="display:none;gap:10px;flex-wrap:wrap">
       <button id="promo-download" type="button">BAIXAR IMAGEM</button>
-      <button id="promo-share" type="button">COMPARTILHAR</button>
+      <button id="promo-share" type="button">COMPARTILHAR IMAGEM + TEXTO</button>
       <button id="promo-message" type="button">COPIAR MENSAGEM</button>
       <button id="promo-whatsapp" type="button">ABRIR WHATSAPP</button>
     </div>
@@ -291,12 +291,28 @@
   };
   $('promo-message').onclick=async()=>{try{await navigator.clipboard.writeText(message);status.textContent='Mensagem copiada!';}catch{status.textContent='Não foi possível copiar. Use HTTPS ou localhost.';}};
   $('promo-whatsapp').onclick=()=>window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(message),'_blank','noopener,noreferrer');
-  $('promo-share').onclick=async()=>{
-    if(!imageBlob)return;
-    const file=new File([imageBlob],'promocao-parfum-vidigal.png',{type:'image/png'});
+  // Compartilhamento nativo: envia o arquivo PNG e a legenda juntos
+  // para aplicativos compatíveis, inclusive WhatsApp em celulares.
+  $('promo-share').onclick = async () => {
+    if (!imageBlob) { status.textContent = 'Gere a arte antes de compartilhar.'; return; }
+    const file = new File([imageBlob], 'promocao-parfum-vidigal.png', { type: 'image/png' });
+    const shareData = { files: [file], title: 'Promoção Parfum Vidigal', text: message };
     try {
-      if(navigator.canShare?.({files:[file]})) await navigator.share({files:[file],text:message});
-      else {status.textContent='Compartilhamento de imagem indisponível neste navegador. Baixe a arte e envie no grupo manualmente.';}
-    } catch(err) {if(err.name!=='AbortError')status.textContent='Falha ao compartilhar: '+err.message;}
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share(shareData);
+        status.textContent = 'Compartilhamento iniciado. Confira se o WhatsApp incluiu a legenda antes de enviar.';
+      } else {
+        // Desktop / navegador sem suporte a compartilhamento de arquivos.
+        // Não há como anexar arquivo a um grupo via link wa.me.
+        try {
+          await navigator.clipboard.writeText(message);
+          status.textContent = 'Seu navegador não permite enviar imagem e texto juntos. Mensagem copiada! Baixe a arte e anexe no WhatsApp.';
+        } catch (_) {
+          status.textContent = 'Seu navegador não permite enviar imagem e texto juntos. Use BAIXAR IMAGEM e COPIAR TEXTO.';
+        }
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') status.textContent = 'Não foi possível compartilhar: ' + err.message;
+    }
   };
 })();
