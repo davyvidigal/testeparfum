@@ -1,5 +1,9 @@
-PARFUM VIDIGAL - Compartilhamento de imagem + texto
+PARFUM VIDIGAL — Cobranças em página separada
 
-Substitua somente promocoes.js no site e atualize com Ctrl+F5.
-O botão COMPARTILHAR IMAGEM + TEXTO usa a função nativa de compartilhamento do dispositivo. Em celulares compatíveis, selecione WhatsApp e o grupo. Alguns navegadores ou versões do WhatsApp não mantêm a legenda; confira antes de enviar. Em computadores sem suporte, baixe a imagem e copie a mensagem.
-Nenhuma alteração nas cores, produtos, imagens ou outras funcionalidades.
+Abra admin.html para cadastrar produtos e acessar o menu. Clique em Clientes e cobranças para abrir cobrancas.html. As páginas financeiro.html, promocoes.html e relatorios.html continuam separadas.
+
+Substitua todos os arquivos da versão anterior pelos arquivos deste ZIP na MESMA pasta e origem do site. Não apague os dados do navegador: os registros continuam no localStorage. Faça backup antes de atualizar.
+
+A página cobrancas.html usa a mesma lógica e armazenamento de admin.js; os clientes existentes no mesmo navegador e domínio continuam acessíveis.
+
+ATENÇÃO: o login JavaScript não equivale a autenticação segura no servidor.

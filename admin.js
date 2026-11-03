@@ -400,6 +400,7 @@ productForm.addEventListener("submit", async function(event) {
   const category = document.getElementById("category").value;
   const stock = Number(document.getElementById("stock").value);
   const description = document.getElementById("description").value.trim();
+  const cost = Number(document.getElementById("cost").value || 0);
 
   if (
     !name ||
@@ -454,7 +455,8 @@ productForm.addEventListener("submit", async function(event) {
     category,
     image: productImage,
     stock,
-    description
+    description,
+    cost
   };
 
   const updatedProducts = existingProduct
@@ -488,6 +490,7 @@ function editProduct(id) {
   document.getElementById("edit-id").value = product.id;
   document.getElementById("name").value = product.name;
   document.getElementById("price").value = product.price;
+  document.getElementById("cost").value = product.cost ?? 0;
   document.getElementById("category").value = product.category;
   document.getElementById("stock").value = product.stock;
   document.getElementById("description").value = product.description || "";
@@ -606,12 +609,14 @@ function renderCharges() {
   chargeList.innerHTML = "";
 
   renderChargeSummary(charges);
-  renderReports();
+  // Falhas em relatórios/financeiro não podem impedir a listagem de clientes.
+  try { renderReports(); } catch (error) { console.error("Erro nos relatórios:", error); }
+  try { renderFinance(); } catch (error) { console.error("Erro no financeiro:", error); }
 
   if (charges.length === 0) {
     const empty = document.createElement("p");
     empty.className = "empty-message";
-    empty.textContent = "Nenhuma cobrança cadastrada ainda.";
+    empty.textContent = "Nenhuma cobrança encontrada neste navegador. Se você cadastrou clientes em outro dispositivo, domínio ou endereço do site, os registros do localStorage não aparecem aqui.";
     chargeList.appendChild(empty);
     return;
   }
@@ -778,6 +783,11 @@ chargeForm.addEventListener("submit", function(event) {
     quantity: selectedProducts.length === 1 ? selectedProducts[0].quantity : 0,
 
     paid: false,
+    costTotal: selectedProducts.reduce((sum, item) => {
+      const prod = getProducts().find(p => String(p.id) === String(item.id));
+      return sum + (Number(prod?.cost) || 0) * Number(item.quantity || 1);
+    }, 0),
+    createdAtISO: new Date().toISOString(),
     createdAt: new Date().toLocaleDateString("pt-BR")
   };
 
@@ -842,7 +852,8 @@ function toggleChargeStatus(id) {
     if (String(charge.id) === String(id)) {
       return {
         ...charge,
-        paid: !charge.paid
+        paid: !charge.paid,
+        paidAtISO: !charge.paid ? new Date().toISOString() : null
       };
     }
 
@@ -1392,4 +1403,126 @@ if (isAuthenticated()) {
   showAdmin();
 } else {
   showLogin();
+}
+// FINANCEIRO: dados locais; não altera registros de vendas existentes.
+const EXPENSES_KEY = "parfumvidigal_expenses";
+const FIXED_KEY = "parfumvidigal_fixed_expenses";
+function readFinanceList(key) {
+  try { const v = JSON.parse(localStorage.getItem(key) || "[]"); return Array.isArray(v) ? v : []; }
+  catch (_) { return []; }
+}
+function financeExpenses() { return readFinanceList(EXPENSES_KEY); }
+function fixedExpenses() { return readFinanceList(FIXED_KEY); }
+function financeMonth(date) {
+  if (!date) return "";
+  const value = String(date);
+  if (/^\d{4}-\d{2}/.test(value)) return value.slice(0,7);
+  const m = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? m[3] + "-" + m[2] : "";
+}
+function currentFinanceMonth() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+}
+function monthNumber(m) { return Number(m.slice(0,4))*12 + Number(m.slice(5,7)) - 1; }
+function monthFromNumber(n) { const y = Math.floor(n/12); return y + "-" + String(n%12+1).padStart(2,"0"); }
+function fixedForMonth(m) {
+  return fixedExpenses().filter(f => f.start <= m && (!f.end || f.end >= m))
+    .reduce((sum,f) => sum + (Number(f.amount)||0),0);
+}
+function chargeMonth(c) { return financeMonth(c.paidAtISO || c.createdAtISO || c.createdAt); }
+function financeTotals(m, products, paid, expenses) {
+  const sales = paid.filter(c => chargeMonth(c) === m);
+  let unknown = 0;
+  const revenue = sales.reduce((a,c) => a + (Number(c.amount)||0),0);
+  const cogs = sales.reduce((total,c) => {
+    if (c.costTotal !== undefined && c.costTotal !== null && Number.isFinite(Number(c.costTotal))) return total + Number(c.costTotal);
+    const items = getChargeProducts(c,products);
+    for (const {product} of items) if (product.cost === undefined) unknown++;
+    return total + items.reduce((a,{product,quantity}) => a + (Number(product.cost)||0)*quantity,0);
+  },0);
+  const variable = expenses.filter(e => financeMonth(e.date) === m).reduce((a,e)=>a+(Number(e.amount)||0),0);
+  const fixed = fixedForMonth(m);
+  return {revenue,cogs,variable,fixed,unknown,profit:revenue-cogs-variable-fixed};
+}
+function renderFinance() {
+  const root = document.getElementById("financeiro");
+  if (!root || !isAuthenticated()) return;
+  const selected = document.getElementById("finance-month").value;
+  const products = getProducts();
+  const paid = getCharges().filter(c => c.paid);
+  const expenses = financeExpenses();
+  const fixed = fixedExpenses();
+  const today = currentFinanceMonth();
+  const dates = [...paid.map(chargeMonth),...expenses.map(e=>financeMonth(e.date)),...fixed.map(f=>f.start)].filter(m=>/^\d{4}-\d{2}$/.test(m));
+  const earliest = dates.length ? dates.sort()[0] : today;
+  const first = monthNumber(earliest);
+  const last = Math.max(first,monthNumber(today));
+  // O filtro de mês altera os totais do período; médias sempre usam o histórico até o mês atual.
+  const displayMonths = selected ? [selected] : Array.from({length:last-first+1},(_,i)=>monthFromNumber(first+i));
+  const historicalMonths = Array.from({length:last-first+1},(_,i)=>monthFromNumber(first+i));
+  const aggregate = months => months.reduce((a,m)=>{
+    const t=financeTotals(m,products,paid,expenses);
+    for (const k of ["revenue","cogs","variable","fixed","unknown","profit"]) a[k]+=t[k];
+    return a;
+  },{revenue:0,cogs:0,variable:0,fixed:0,unknown:0,profit:0});
+  const t=aggregate(displayMonths), history=aggregate(historicalMonths), count=historicalMonths.length;
+  const set=(id,v)=>document.getElementById(id).textContent=v;
+  set("finance-revenue",formatPrice(t.revenue));
+  set("finance-cogs",formatPrice(t.cogs));
+  set("finance-expenses",formatPrice(t.variable));
+  set("finance-fixed",formatPrice(t.fixed));
+  set("finance-profit",formatPrice(t.profit));
+  set("avg-revenue",formatPrice(history.revenue/count));
+  set("avg-expenses",formatPrice((history.cogs+history.variable+history.fixed)/count));
+  set("avg-fixed",formatPrice(history.fixed/count));
+  set("avg-profit",formatPrice(history.profit/count));
+  set("avg-ratio",history.revenue>0 ? ((history.cogs+history.variable+history.fixed)/history.revenue*100).toFixed(1).replace(".",",")+"%" : "—");
+  set("finance-average-period",`Período: ${earliest} a ${monthFromNumber(last)} (${count} mês(es)). ${dates.length ? "" : "Ainda não há registros financeiros; médias em zero."}`);
+  set("finance-warning",t.unknown ? `${t.unknown} item(ns) de vendas antigas sem custo cadastrado; o lucro pode estar superestimado.` : "Lucro estimado: não inclui impostos e custos não cadastrados. Vendas sem data reconhecível não entram nos totais.");
+  const tbody=document.getElementById("expense-list");tbody.replaceChildren();
+  expenses.filter(e=>!selected||financeMonth(e.date)===selected).sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
+    const tr=document.createElement("tr");
+    [e.date.split("-").reverse().join("/"),e.description,formatPrice(e.amount)].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.append(td);});
+    const td=document.createElement("td"),btn=document.createElement("button");btn.type="button";btn.textContent="Excluir";
+    btn.addEventListener("click",()=>{if(!confirm("Excluir esta despesa?"))return;localStorage.setItem(EXPENSES_KEY,JSON.stringify(financeExpenses().filter(x=>x.id!==e.id)));renderFinance();});
+    td.append(btn);tr.append(td);tbody.append(tr);
+  });
+  const fixedBody=document.getElementById("fixed-list");fixedBody.replaceChildren();
+  fixed.forEach(f=>{
+    const tr=document.createElement("tr");
+    [f.description,formatPrice(f.amount),f.start,f.end||"Ativa"].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.append(td);});
+    const td=document.createElement("td");
+    if(!f.end){const stop=document.createElement("button");stop.type="button";stop.textContent="Encerrar";
+      stop.addEventListener("click",()=>{const end=prompt("Último mês de cobrança (AAAA-MM):",today);if(end===null)return;if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(end)||end<f.start){alert("Mês inválido ou anterior ao início.");return;}const all=fixedExpenses();const item=all.find(x=>x.id===f.id);if(item)item.end=end;localStorage.setItem(FIXED_KEY,JSON.stringify(all));renderFinance();});td.append(stop);}
+    const del=document.createElement("button");del.type="button";del.textContent="Excluir";
+    del.addEventListener("click",()=>{if(!confirm("Excluir todo o histórico desta despesa fixa?"))return;localStorage.setItem(FIXED_KEY,JSON.stringify(fixedExpenses().filter(x=>x.id!==f.id)));renderFinance();});td.append(del);tr.append(td);fixedBody.append(tr);
+  });
+}
+const financeForm=document.getElementById("expense-form");
+if(financeForm){
+  const dateInput=document.getElementById("expense-date");
+  const d=new Date();dateInput.value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  financeForm.addEventListener("submit",e=>{
+    e.preventDefault();if(!isAuthenticated())return;
+    const description=document.getElementById("expense-description").value.trim();
+    const amount=Number(document.getElementById("expense-amount").value),date=dateInput.value;
+    if(!description||!date||!Number.isFinite(amount)||amount<=0)return;
+    const all=financeExpenses();all.push({id:Date.now()+Math.random(),description,amount,date});
+    try{localStorage.setItem(EXPENSES_KEY,JSON.stringify(all));financeForm.reset();dateInput.value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");renderFinance();}
+    catch(_){alert("Não foi possível salvar a despesa.");}
+  });
+  const fixedForm=document.getElementById("fixed-expense-form");
+  document.getElementById("fixed-start").value=currentFinanceMonth();
+  fixedForm.addEventListener("submit",e=>{
+    e.preventDefault();if(!isAuthenticated())return;
+    const description=document.getElementById("fixed-description").value.trim();
+    const amount=Number(document.getElementById("fixed-amount").value),start=document.getElementById("fixed-start").value;
+    if(!description||!Number.isFinite(amount)||amount<=0||!/^\d{4}-(0[1-9]|1[0-2])$/.test(start))return;
+    const all=fixedExpenses();all.push({id:Date.now()+Math.random(),description,amount,start,end:null});
+    try{localStorage.setItem(FIXED_KEY,JSON.stringify(all));fixedForm.reset();document.getElementById("fixed-start").value=currentFinanceMonth();renderFinance();}
+    catch(_){alert("Não foi possível salvar o gasto fixo.");}
+  });
+  document.getElementById("finance-month").addEventListener("change",renderFinance);
+  document.getElementById("finance-all").addEventListener("click",()=>{document.getElementById("finance-month").value="";renderFinance();});
 }

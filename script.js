@@ -212,11 +212,18 @@ function addToCart(id) {
   }
 
   registerProductInterest(product.id, "clicks");
+  const stock = product.stock === undefined || product.stock === null ? Infinity : Number(product.stock);
+  const existingQty = cart.find(p => String(p.id) === String(id))?.quantity || 0;
+  if (existingQty >= stock) { alert("Quantidade indisponível no estoque."); return; }
 
   const item = cart.find(p => String(p.id) === String(id));
 
   if (item) {
-    item.quantity = Number(item.quantity) + 1;
+    const product = products.find(p => String(p.id) === String(id));
+  if (product && product.stock !== undefined && Number(item.quantity) >= Number(product.stock)) {
+    alert("Quantidade indisponível no estoque."); return;
+  }
+  item.quantity = Number(item.quantity) + 1;
   } else {
     cart.push({
       ...product,
@@ -242,6 +249,10 @@ function increaseQuantity(id) {
 
   if (!item) return;
 
+  const product = products.find(p => String(p.id) === String(id));
+  if (product && product.stock !== undefined && Number(item.quantity) >= Number(product.stock)) {
+    alert("Quantidade indisponível no estoque."); return;
+  }
   item.quantity = Number(item.quantity) + 1;
 
   saveCart();
@@ -358,7 +369,8 @@ function checkout() {
   const url =
     `https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`;
 
-  window.open(url, "_blank", "noopener,noreferrer");
+  const opened = window.open(url, "_blank");
+  if (!opened) window.location.href = url;
 }
 
 // INICIAR LOJA
@@ -406,3 +418,8 @@ if (document.readyState === "loading") {
 } else {
   initStore();
 }
+
+// Compatibilidade com botões onclick do HTML, inclusive quando servido por versões antigas.
+window.toggleCart = toggleCart;
+window.checkout = checkout;
+window.addToCart = addToCart;

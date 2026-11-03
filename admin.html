@@ -67,7 +67,14 @@
       .charge-actions button { width: 100%; margin: 0; }
     }
   </style>
-</head>
+<style>
+body[data-page="principal"] #cobrancas,body[data-page="principal"] #relatorios,body[data-page="principal"] #financeiro,body[data-page="principal"] #promotion-studio{display:none!important}
+body[data-page="cobrancas"] #cadastro,body[data-page="cobrancas"] #produtos,body[data-page="cobrancas"] #relatorios,body[data-page="cobrancas"] #financeiro,body[data-page="cobrancas"] #promotion-studio{display:none!important}
+body[data-page="financeiro"] #cadastro,body[data-page="financeiro"] #produtos,body[data-page="financeiro"] #cobrancas,body[data-page="financeiro"] #relatorios,body[data-page="financeiro"] #promotion-studio{display:none!important}
+body[data-page="relatorios"] #cadastro,body[data-page="relatorios"] #produtos,body[data-page="relatorios"] #cobrancas,body[data-page="relatorios"] #financeiro,body[data-page="relatorios"] #promotion-studio{display:none!important}
+body[data-page="promocoes"] #cadastro,body[data-page="promocoes"] #produtos,body[data-page="promocoes"] #cobrancas,body[data-page="promocoes"] #relatorios,body[data-page="promocoes"] #financeiro{display:none!important}
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}.pricing-grid label{display:flex;flex-direction:column;gap:5px}.pricing-grid input{width:100%;box-sizing:border-box}.pricing-result{background:#f5f0e8;border-radius:10px;padding:16px;margin-top:12px;line-height:1.8}.pricing-result strong{color:#73501f}.pricing-note{font-size:13px;color:#555;line-height:1.6}
+</style><script>document.addEventListener('DOMContentLoaded',()=>{const v=new URLSearchParams(location.search).get('page');document.body.dataset.page=['financeiro','relatorios','promocoes','cobrancas'].includes(v)?v:'principal';});</script></head>
 <body>
 
   <section class="login-container" id="admin-login">
@@ -93,9 +100,10 @@
     <nav class="admin-menu">
       <a href="#cadastro">Cadastrar produtos</a>
       <a href="#produtos">Produtos cadastrados</a>
-      <a href="#cobrancas">Bloco de notas e cobranças</a>
-      <a href="#relatorios">Relatórios</a>
-      <a href="#promotion-studio">Promoções</a>
+      <a href="cobrancas.html">Clientes e cobranças ↗</a>
+      <a href="relatorios.html">Relatórios ↗</a>
+      <a href="financeiro.html">Financeiro ↗</a>
+      <a href="promocoes.html">Promoções ↗</a>
     </nav>
 
     <section class="form-container" id="cadastro">
@@ -110,6 +118,8 @@
         <label for="price">Preço (R$)</label>
         <input type="number" id="price" min="0" step="0.01" placeholder="299.90" required>
 
+        <label for="cost">Custo de aquisição por unidade (R$)</label>
+        <input type="number" id="cost" min="0" step="0.01" placeholder="Ex.: 180.00">
         <label for="category">Categoria</label>
         <select id="category" required>
           <option value="">Selecione</option>
@@ -264,9 +274,75 @@
       </p>
     </section>
 
+
+    <section id="financeiro" class="report-section">
+      <h2>Lucros e despesas</h2><div class="report-panel" id="pricing-assistant">
+<h3>Assistente de preços e faturamento</h3><p class="report-note">Simule um preço de venda com base nos seus custos, despesas e lucro desejado. As porcentagens são ajustáveis e não são médias de mercado.</p>
+<div class="pricing-grid">
+<label>Perfume cadastrado <select id="pricing-product"><option value="">Escolher perfume (opcional)</option></select></label>
+<label>Custo de compra (R$) <input type="number" id="pricing-cost" min="0" step="0.01" value="100"></label>
+<label>Embalagem / frete por unidade (R$) <input type="number" id="pricing-extra" min="0" step="0.01" value="10"></label>
+<label>Taxas sobre a venda (%) <input type="number" id="pricing-fee" min="0" max="95" step="0.1" value="5"></label>
+<label>Margem de lucro desejada (%) <input type="number" id="pricing-margin" min="0" max="95" step="0.1" value="25"></label>
+<label>Vendas esperadas por mês (unidades) <input type="number" id="pricing-units" min="1" step="1" value="10"></label>
+</div>
+<div class="pricing-result" aria-live="polite" id="pricing-output"></div>
+<p class="pricing-note">A margem é calculada sobre o preço de venda, não sobre o custo. Gastos fixos mensais são rateados pelas unidades estimadas. O resultado é uma simulação, não garantia de lucro. Impostos, devoluções e outros custos precisam ser incluídos nas taxas ou custos informados.</p>
+<h4>Como aumentar o faturamento com responsabilidade</h4>
+<ul><li>Compare o preço sugerido com o preço atual e com o que seus clientes aceitam pagar.</li><li>Registre todas as vendas pagas e custos reais para acompanhar a margem.</li><li>Teste promoções sem vender abaixo do custo total.</li><li>Acompanhe a média mensal e ajuste compras e estoque conforme a demanda.</li></ul>
+</div>
+      <p class="report-note">Somente vendas marcadas como pagas entram no faturamento. Cadastre o custo de cada perfume e as despesas para calcular o resultado. Dados salvos neste navegador.</p>
+      <label for="finance-month">Filtrar mês:</label>
+      <input id="finance-month" type="month">
+      <button type="button" id="finance-all">Todos os períodos</button>
+      <div class="report-kpis" style="margin-top:16px">
+        <div class="report-kpi"><span>Faturamento recebido</span><strong id="finance-revenue">R$ 0,00</strong></div>
+        <div class="report-kpi"><span>Custo dos perfumes vendidos</span><strong id="finance-cogs">R$ 0,00</strong></div>
+        <div class="report-kpi"><span>Outras despesas</span><strong id="finance-expenses">R$ 0,00</strong></div>
+        <div class="report-kpi"><span>Gastos fixos no período</span><strong id="finance-fixed">R$ 0,00</strong></div>
+        <div class="report-kpi"><span>Lucro líquido estimado</span><strong id="finance-profit">R$ 0,00</strong></div>
+      </div>
+      <div class="report-panel">
+        <h3>Médias mensais (calculadas a partir dos seus registros)</h3>
+        <p id="finance-average-period" class="report-note"></p>
+        <div class="report-kpis">
+          <div class="report-kpi"><span>Média recebida / mês</span><strong id="avg-revenue">R$ 0,00</strong></div>
+          <div class="report-kpi"><span>Média de gastos / mês</span><strong id="avg-expenses">R$ 0,00</strong></div>
+          <div class="report-kpi"><span>Média de gastos fixos / mês</span><strong id="avg-fixed">R$ 0,00</strong></div>
+          <div class="report-kpi"><span>Média de lucro / mês</span><strong id="avg-profit">R$ 0,00</strong></div>
+          <div class="report-kpi"><span>Gastos sobre receitas</span><strong id="avg-ratio">—</strong></div>
+        </div>
+        <p class="report-note">Gastos incluem custo dos perfumes vendidos, despesas avulsas e despesas fixas. Meses sem vendas dentro do período também entram na média. Valores baseados apenas no que foi registrado.</p>
+      </div>
+      <div class="report-panel">
+        <h3>Despesas mensais fixas</h3>
+        <p class="report-note">Ex.: internet, aluguel, sistema e publicidade recorrente. Cada despesa entra automaticamente em todos os meses a partir do mês inicial, até ser encerrada ou excluída. Não registre o mesmo gasto novamente como despesa avulsa.</p>
+        <form id="fixed-expense-form">
+          <label>Descrição <input id="fixed-description" required placeholder="Ex.: Internet"></label>
+          <label>Valor mensal (R$) <input id="fixed-amount" type="number" min="0.01" step="0.01" required></label>
+          <label>Começa em <input id="fixed-start" type="month" required></label>
+          <button type="submit">ADICIONAR GASTO FIXO</button>
+        </form>
+        <div style="overflow-x:auto"><table class="report-table"><thead><tr><th>Despesa</th><th>Valor mensal</th><th>Início</th><th>Fim</th><th>Ações</th></tr></thead><tbody id="fixed-list"></tbody></table></div>
+      </div>
+      <div class="report-panel">
+        <h3>Cadastrar despesa</h3>
+        <form id="expense-form">
+          <label>Descrição <input id="expense-description" required placeholder="Ex.: Embalagens, entrega, anúncios"></label>
+          <label>Valor (R$) <input id="expense-amount" type="number" min="0.01" step="0.01" required></label>
+          <label>Data <input id="expense-date" type="date" required></label>
+          <button type="submit">REGISTRAR DESPESA</button>
+        </form>
+        <h3>Despesas registradas</h3>
+        <div style="overflow-x:auto"><table class="report-table"><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Ação</th></tr></thead><tbody id="expense-list"></tbody></table></div>
+        <p id="finance-warning" class="report-note"></p>
+      </div>
+    </section>
+
   </main>
 
   <script src="admin.js"></script>
   <script src="promocoes.js"></script>
+<script src="precificacao.js"></script>
 </body>
 </html>
